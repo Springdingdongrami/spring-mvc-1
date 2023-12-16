@@ -1,5 +1,7 @@
 # 1. 웹 애플리케이션 이해
 
+POSTMAN 주소: https://documenter.getpostman.com/view/25554684/2s9Ykn8Mka
+
 ### 웹 서버, 웹 애플리케이션 서버
 
 - 모든 것이 HTTP - HTTP 메시지에 모든 것을 전송
@@ -157,3 +159,328 @@
     - 주로 동적인 화면에 사용, 웹 환경을 마치 앱처럼 필요한 부분부분 변경할 수 있음
     - 예) 구글 지도, Gmail, 구글 캘린더
     - 관련 기술: React, Vue.js → 웹 프론트엔드 개발자
+ 
+# 2. 서블릿
+
+### 프로젝트 생성
+
+** Packaging: War (JSP 사용을 위함)
+
+** Dependencies: Spring Web, Lombok 추가
+
+### Hello 서블릿
+
+- 스프링 부트 서블릿 환경 구성
+    - `@ServletComponentScan` : 스프링부트는 서블릿을 직접 등록해서 사용할 수 있도록 애노테이션을 지원한다.
+        
+        ```java
+        package hello.servlet;
+        
+        import org.springframework.boot.SpringApplication;
+        import org.springframework.boot.autoconfigure.SpringBootApplication;
+        import org.springframework.boot.web.servlet.ServletComponentScan;
+        
+        @ServletComponentScan // 서블릿 자동 등록
+        @SpringBootApplication
+        public class ServletApplication {
+        
+        	public static void main(String[] args) {
+        		SpringApplication.run(ServletApplication.class, args);
+        	}
+        
+        }
+        ```
+        
+    - `@WebServlet` : 서블릿 애노테이션
+        - name: 서블릿 이름
+        - urlPatterns: URL 매핑
+        
+        ```java
+        package hello.servlet.basic;
+        
+        import jakarta.servlet.ServletException;
+        import jakarta.servlet.annotation.WebServlet;
+        import jakarta.servlet.http.HttpServlet;
+        import jakarta.servlet.http.HttpServletRequest;
+        import jakarta.servlet.http.HttpServletResponse;
+        
+        import java.io.IOException;
+        
+        @WebServlet(name = "helloServlet", urlPatterns = "/hello")
+        public class HelloServlet extends HttpServlet {
+        
+            @Override
+            protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+                System.out.println("HelloServlet.service");
+                System.out.println("request = " + request);
+                System.out.println("response = " + response);
+        
+                String username = request.getParameter("username");
+                System.out.println("username = " + username);
+        
+                response.setContentType("text/plain");
+                response.setCharacterEncoding("utf-8");
+                response.getWriter().write("hello " + username);
+            }
+        
+        }
+        ```
+        
+        - HTTP 요청을 통해 매핑된 URL이 호출되면 서블릿 컨테이너는 service 메서드를 실행한다.
+        - 웹 브라우저 실행 → `http://localhost:8080/hello?username=kim`
+            
+            ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/bc748a51-cf8a-485b-ad01-a135588e71bd)
+            
+            ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/b00f976b-8662-42fa-b64d-d066d9a1a900)
+            
+
+- HTTP 요청 메시지 로그로 확인하기
+    - application.properties
+        
+        ```java
+        logging.level.org.apache.coyote.http11=debug
+        ```
+        
+    
+    ** 운영서버에 이렇게 모든 요청 정보를 다 남기면 성능저하가 발생할 수 있다. 개발 단계에서만 적용하자.
+    
+
+- 서블릿 컨테이너 동작 방식
+    - 내장 톰캣 서버 생성
+        
+        ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/6b36c8f1-d7c1-48b1-bed6-d156d887dd91)
+        
+    - HTTP 요청, HTTP 응답 메시지
+        
+        ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/f36408ab-1edf-4fa4-a688-18d76fba583c)
+        
+    - 웹 애플리케이션 서버의 요청 응답 구조
+        
+        ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/d8f1312e-44d3-45c8-ad4d-95fecadeca22)
+        
+    
+    ** HTTP 응답에서 Content-Length는 WAS가 자동으로 생성해준다.
+    
+
+### HttpServletRequest
+
+- HttpServletRequest 역할
+    - 서블릿은  HTTP 요청 메시지를 파싱한 결과를 `HttpServletRequest` 객체에 담아서 제공한다.
+
+- HTTP 요청 메시지
+    
+    ```
+    POST /save HTTP/1.1
+    Host: localhost:8080
+    Content-Type: application/x-www-form-urlencoded
+    
+    username=kim&age=20
+    ```
+    
+    - START LINE
+        - HTTP 메서드
+        - URL
+        - 쿼리 스트링
+        - 스키파, 프로토콜
+    - 헤더
+        - 헤더 조회
+    - 바디
+        - form 파라미터 형식 조회
+        - message body 데이터 직접 조회
+
+- 임시 저장소 기능 (해당 HTTP 요청이 시작될 때부터 끝날 때까지 유지)
+    - 저장: `request.setAttribute(name, value)`
+    - 조회: `request.setAttribute(name)`
+
+- 세션 관리 기능
+    - `request.getSession(create: true)`
+
+### HTTP 요청 데이터
+
+- GET - 쿼리 파라미터
+    - /url?username=hello&age=20
+    - 메시지 바디 없이, URL의 쿼리 파라미터에 데이터를 포함해서 전달
+    - 예) 검색, 필터, 페이징 등에서 많이 사용
+
+- POST - HTML Form
+    - content-type: application/x-www-form-urlencoded
+    - 메시지 바디에 쿼리 파라미터 형식으로 전달 username=hello&age=20
+    - 예) 회원 가입, 상품 주문, HTML Form 사용
+
+- HTTP message body에 데이터를 직접 담아서 요청
+    - HTTP API에서 주로 사용, JSON, XML, TEXT
+    - 데이터 형식은 주로 JSON 사용
+    - POST, PUT, PATCH
+
+### HTTP 요청 데이터 - GET 쿼리 파라미터
+
+- 쿼리 파라미터는 URL에 다음과 같이 `?`를 시작으로 보낼 수 있다. 추가 파라미터는 `&`로 구분하면 된다.
+    - `http://localhost:8080/request-param?username=hello&age=20`
+
+- 서버에서는 HttpServletRequest가 제공하는 다음 메서드를 통해 쿼리 파라미터를 편리하게 조회할 수 있다.
+    
+    ```java
+    /* 쿼리 파라미터 조회 메서드 */
+    
+    // 단일 파라미터 조회
+    String username = request.getParameter("username");
+    
+    // 파라미터 이름들 모두 조회
+    Enumeration<String> parameterNames = request.getParameterNames();
+    
+    // 파라미터를 Map으로 조회
+    Map<String, String[]> parameterMap = request.getParameterMap();
+    
+    // 복수 파라미터 조회
+    String[] usernames = request.getParameterValues("username");
+    ```
+    
+
+- 복수 파라미터에서 단일 파라미터 조회
+    - `request.getParameter()`는 하나의 파라미터에 대해 단 하나의 값만 있을 때 사용해야 한다. (중복일 때 사용하면 첫 번째 값을 반환함)
+    - 중복일 때는 `request.getParameterValues()`를 사용해야 한다.
+
+### HTTP 요청 데이터 - POST HTML Form
+
+- POST의 HTML Form을 전송하면 웹 브라우저는 다음 형식으로 HTTP 메시지를 만든다.
+    - 요청 URL: `http://localhost:8080/request-param`
+    - content-type: `application/x-www-form-urlencoded`
+    - message body: `username=hello&age=20`
+
+- `application/x-www-form-urlencoded` 형식(폼으로 데이터를 전송하는 형식)은 앞서 GET에서 살펴본 쿼리 파라미터 형식과 같기 때문에 **쿼리 파라미터 조회 메서드를 그대로 사용**하면 된다.
+    - `request.getParameter()`로 편리하게 구분 없이 조회할 수 있다.
+
+> content-type은 HTTP 메시지 바디의 데이터 형식을 지정한다. <br> <br>
+> ☑️ **GET URL 쿼리 파라미터 형식**으로 데이터를 전달할 때는 HTTP 메시지 바디를 사용하지 않기 때문에 content-type이 없다. <br>
+> ☑️ **POST HTML Form 형식**으로 데이터를 전달하면 HTTP 메시지 바디에 해당 데이터를 포함해서 보내기 때문에 바디에 포함된 데이터가 어떤 형식인지 content-type을 꼭 지정해야 한다.
+
+### HTTP 요청 데이터 - API 메시지 바디
+
+- HTTP 메시지 바디의 데이터를 InputStream을 사용해서 직접 읽을 수 있다.
+    - InputStream은 byte 코드를 반환한다.
+    - byte 코드를 우리가 읽을 수 있는 문자(String)로 보려면 문자표(Charset)를 지정해주어야 한다. (여기서는 UTF_8 Charset을 지정해주었다.)
+
+- 단순 텍스트 전송
+    - POST http://localhost:8080/request-body-string
+    - content-type: text/plain
+    - message body: hello
+
+- JSON
+    - JSON 형식으로 파싱할 수 있도록 객체를 생성해야 한다.
+        
+        ```java
+        package hello.servlet.basic;
+        
+        import lombok.Getter;
+        import lombok.Setter;
+        
+        @Getter
+        @Setter
+        public class HelloData {
+        
+            private String username;
+            private int age;
+        
+        }
+        ```
+        
+    - JSON 형식 전송
+        - POST http://localhost:8080/request-body-json
+        - content-type: **application/json**
+        - message body: {”username”: “hello”, “age”:20}
+    - `ObjectMapper` 객체를 이용하여 JSON 결과를 파싱하여 자바 객체로 변환할 수 있다.
+
+### HttpServletResponse
+
+- 역할
+    - HTTP 응답 메시지 생성
+        - 응답 코드 지정, 헤더 생성, 바디 생성
+    - 편의 기능 제공
+        - Content-Type, 쿠키, Redirect
+
+### HTTP 응답 데이터
+
+- 단순 텍스트 응답
+    
+    ```java
+    PrintWriter writer = response.getWriter();
+    writer.println("ok");
+    ```
+    
+
+- HTML 응답
+    
+    ```java
+    package hello.servlet.basic.response;
+    
+    import jakarta.servlet.ServletException;
+    import jakarta.servlet.annotation.WebServlet;
+    import jakarta.servlet.http.HttpServlet;
+    import jakarta.servlet.http.HttpServletRequest;
+    import jakarta.servlet.http.HttpServletResponse;
+    
+    import java.io.IOException;
+    import java.io.PrintWriter;
+    
+    @WebServlet(name = "responseHtmlServlet", urlPatterns = "/response-html")
+    public class ResponseHtmlServlet extends HttpServlet {
+    
+        @Override
+        protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+            // Content-Type: text/html;charset=utf-8
+            response.setContentType("text/html");
+            response.setCharacterEncoding("utf-8");
+    
+            PrintWriter writer = response.getWriter();
+            writer.println("<html>");
+            writer.println("<body>");
+            writer.println("  <div>안녕?</div>");
+            writer.println("</body>");
+            writer.println("</html>");
+        }
+    
+    }
+    ```
+    
+    - content-type: `text/html`
+
+- API JSON 응답
+    
+    ```java
+    package hello.servlet.basic.response;
+    
+    import com.fasterxml.jackson.databind.ObjectMapper;
+    import hello.servlet.basic.HelloData;
+    import jakarta.servlet.ServletException;
+    import jakarta.servlet.annotation.WebServlet;
+    import jakarta.servlet.http.HttpServlet;
+    import jakarta.servlet.http.HttpServletRequest;
+    import jakarta.servlet.http.HttpServletResponse;
+    
+    import java.io.IOException;
+    
+    @WebServlet(name = "responseJsonServlet", urlPatterns = "/response-json")
+    public class ResponseJsonServlet extends HttpServlet {
+    
+        private ObjectMapper objectMapper = new ObjectMapper();
+    
+        @Override
+        protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+            // Content-Type: application/json
+            response.setContentType("application/json");
+            response.setCharacterEncoding("utf-8");
+    
+            HelloData helloData = new HelloData();
+            helloData.setUsername("kim");
+            helloData.setAge(20);
+    
+            // {"username": "kim", "age": 20}
+            String result = objectMapper.writeValueAsString(helloData);
+            response.getWriter().write(result);
+        }
+        
+    }
+    ```
+    
+    - content-type: `application/json`
+    - Jackson 라이브러리가 제공하는 `objectMapper.writeValueAsString()` 를 사용하면 객체를 JSON 문자로 변경할 수 있다.
