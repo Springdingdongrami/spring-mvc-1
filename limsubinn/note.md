@@ -484,3 +484,111 @@ POSTMAN 주소: https://documenter.getpostman.com/view/25554684/2s9Ykn8Mka
     
     - content-type: `application/json`
     - Jackson 라이브러리가 제공하는 `objectMapper.writeValueAsString()` 를 사용하면 객체를 JSON 문자로 변경할 수 있다.
+ 
+# 3. 서블릿, JSP, MVC 패턴
+
+### 회원 관리 웹 애플리케이션 요구사항
+
+- 회원 정보
+    - 이름: username
+    - 나이: age
+
+- 기능 요구사항
+    - 회원 저장
+    - 회원 목록 조회
+
+### 서블릿으로 회원 관리 웹 애플리케이션 만들기
+
+- MemberFormServlet
+    - 회원 정보를 입력할 수 있는 HTML Form을 만들어서 응답한다.
+
+- MemberSaveServlet
+    - HTML Form에서 데이터를 입력하고 전송을 누르면 실제 회원 데이터가 저장되도록 한다.
+    - 동작 순서
+        1. 파라미터를 조회해서 Member 객체를 만든다.
+        2. Member 객체를 MemberRepository를 통해 저장한다.
+        3. Member 객체를 사용해서 결과 화면용 HTML을 동적으로 만들어서 응답한다.
+
+- MemberListServlet
+    - 저장된 모든 회원 목록을 조회한다.
+    - 동작 순서
+        1. `memberRepository.findAll()`을 통해 모든 회원을 조회한다.
+        2. 회원 목록 HTML을 for 루프를 통해서 회원 수 만큼 동적으로 생성하고 응답한다.
+
+### JSP로 회원 관리 웹 애플리케이션 만들기
+
+- build.gradle에 JSP 라이브러리 추가
+    
+    ```java
+    implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+    implementation 'jakarta.servlet:jakarta.servlet-api'
+    implementation 'jakarta.servlet.jsp.jstl:jakarta.servlet.jsp.jstl-api'
+    implementation 'org.glassfish.web:jakarta.servlet.jsp.jstl'
+    ```
+    
+
+- JSP는 자바 코드를 그대로 다 사용할 수 있다.
+    - `<%@ page ****contentType="text/html;charset=UTF-8" language="java" %>` 
+        → JSP 문서라는 뜻이다. (꼭 붙여야 함)   
+    - `<%@ page import="hello.servlet.domain.member.MemberRepository" %>`
+        → 자바의 import 문과 같다.
+    - `<% ~~ %>`
+    → 자바 코드를 입력할 수 있다.
+    - `<%= ~~ %>` 
+    → 자바 코드를 출력할 수 있다.
+
+- 실행 시 URL에 .jsp 까지 함께 적어주어야 한다.
+
+- MVC 패턴의 등장
+    - JSP를 사용한 덕분에 뷰를 생성하는 HTML 작업을 깔끔하게 가져가고, 중간중간 동적으로 변경이 필요한 부분에만 자바 코드를 적용했다.
+    - 하지만 JSP 코드를 잘 보면, 코드의 상위 절반은 비즈니스 로직이고 나머지 하위 절반만 결과를 HTML로 보여주기 위한 뷰 영역이다. AVA 코드, 데이터를 조회하는 리포지토리 등등 다양한 코드가 모두 JSP에 노출되어 있다. JSP가 너무 많은 역할을 한다.
+    - 비즈니스 로직은 서블릿 처럼 다른곳에서 처리하고, JSP는 목적에 맞게 HTML로 화면(View)을 그리는 일에 집중하도록 하자.
+
+### MVC 패턴 - 개요
+
+- MVC 패턴 이전
+    - 하나의 서블릿이나 JSP만으로 비즈니스 로직과 뷰 렌더링까지 모두 처리하게 되면, 너무 많은 역할을 하게 되고 결과적으로 유지보수가 어려워진다.
+    - 진짜 문제는 둘 사이에 변경의 라이프 사이클이 다르다는 점이다. 예를 들어 UI를 일부 수정하는 일과 비즈니스 로직을 수정하는 일은 각각 다르게 발생할 가능성이 매우 높고 대부분 서로에게 영향을 주지 않는다. 이렇게 변경의 라이프 사이클이 다른 부분을 하나의 코드로 관리하는 것은 유지보수하기 좋지 않다.
+    - JSP 같은 뷰 템플릿은 화면을 렌더링 하는데 최적화 되어 있기 때문에 이 부분의 업무만 담당하는 것이 가장 효과적이다.
+
+- Model View Controller
+    - MVC 패턴은 하나의 서블릿이나 JSP로 처리하던 것을 컨트롤러와 뷰라는 영역으로 서로 역할을 나눈 것을 말한다.
+        
+        ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/66fa97e4-d167-440c-9c1d-33251c45abf5)
+
+        
+        - **컨트롤러**: HTTP 요청을 받아서 파라미터를 검증하고, 비즈니스 로직을 실행한다. 그리고 뷰에 전달할 결과 데이터를 조회해서 모델에 담는다.
+        - **모델**: 뷰에 출력할 데이터를 담아둔다. 뷰가 필요한 데이터를 모두 모델에 담아서 전달해주는 덕분에 뷰는 비즈니스 로직이나 데이터 접근을 몰라도 되고, 화면을 렌더링 하는 일에 집중할 수 있다.
+        - **뷰**: 모델에 담겨있는 데이터를 사용해서 화면을 그리는 일에 집중한다.
+    
+    ** 컨트롤러에 비즈니스 로직을 둘 수도 있지만, 이렇게 되면 컨트롤러가 너무 많은 역할을 담당한다. 그래서 일반적으로 비즈니스 로직은 서비스(Service)라는 계층을 별도로 만들어서 처리한다. 그리고 컨트롤러는 비즈니스 로직이 있는 서비스를 호출하는 역할을 담당한다.
+    
+    ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/3c07593f-4ecb-409f-967a-6f7d90d54482)
+
+    
+
+### MVC 패턴 - 적용
+
+- 서블릿을 컨트롤러로 사용하고 JSP를 뷰로 사용해서 MVC 패턴을 적용해보자.
+    - Model은 HttpServletRequest 객체를 사용한다. request는 내부에 데이터 저장소를 가지고 있는데, `request.setAttribute()`, `request.getAttribute()`를 사용하면 데이터를 보관하고 조회할 수 있다.
+    - `dispatcher.forward()` : 다른 서블릿이나 JSP로 이동할 수 있는 기능이다. 서버 내부에서 다시 호출이 발생한다.
+    - `WEB-INF` 경로 안에 JSP가 있으면 외부에서 직접 JSP를 호출할 수 없다. 우리가 기대하는 것은 항상 컨트롤러를 통해서 JSP를 호출하는 것이다.
+    - **redirect vs forward** : redirect는 실제 클라이언트(웹 브라우저)에 응답이 나갔다가, 클라이언트가 redirect 경로로 다시 요청한다. 따라서 클라이언트가 인지할 수 있고, URL 경로도 실제로 변경된다. 반면에 forward는 서버 내부에서 일어나는 호출이기 때문에 클라이언트가 전혀 인지하지 못한다.
+    - JSP는 `${}` 문법을 제공하는데, 이 문법을 사용하면 request의 attribute에 담긴 데이터를 편리하게 조회할 수 있다.
+    - taglib 기능을 사용해서 반복하면서 출력이 가능하다.
+        - 선언 `<%@ taglib prefix="c" uri="<http://java.sun.com/jsp/jstl/core>"%>`
+        - `<c:forEach>` 을 이용하여 리스트에서 각 아이템을 순서대로 꺼내 변수에 담아 출력하는 과정을 반복할 수 있다.
+
+### MVC 패턴 - 한계
+
+- MVC 컨트롤러의 단점
+    - 포워드 중복
+        - 뷰로 이동하는 코드가 항상 중복 호출된다.
+    - viewPath 중복
+        - prefix: /WEB-INF/views/
+        - suffix: .jsp
+    - 사용하지 않는 코드
+        - request, response를 사용할 때도 있고 사용하지 않을 때도 있다.
+    - 공통 처리가 어렵다.
+
+⇒ **프론트 컨트롤러(Front Controller)** 패턴을 도입하면 이런 문제를 깔끔하게 해결할 수 있다. (입구를 하나로!)
