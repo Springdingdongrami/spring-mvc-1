@@ -2107,4 +2107,292 @@ POSTMAN 주소: https://documenter.getpostman.com/view/25554684/2s9Ykn8Mka
         - `HandlerMethodReturnValueHandler`
         - `HttpMessageConverter`
     - `WebMvcConfigurer`를 상속 받아서 스프링 빈으로 등록하면 된다.
- 
+
+# 7. 스프링 MVC - 웹 페이지 만들기
+
+### 프로젝트 생성
+
+- Packaging: jar
+- Dependencies: Spring Web, Thymeleaf, Lombok
+
+### 요구사항 분석
+
+- 상품 도메인 모델
+    - 상품 ID
+    - 상품명
+    - 가격
+    - 수량
+
+- 상품 관리 기능
+    - 상품 목록
+    - 상품 상세
+    - 상품 등록
+    - 상품 수정
+
+- 서비스 제공 흐름
+    
+    ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/7e9a75f9-a02d-4ddd-b3fd-8b03571b5bc5)
+
+
+### 상품 도메인 개발
+
+- 상품 객체 **Item**
+- 상품 저장소 **ItemRepository**
+
+### 상품 서비스 HTML
+
+- 부트스트랩
+    - [https://getbootstrap.com/docs/5.0/getting-started/download/](https://getbootstrap.com/docs/5.0/getting-started/download/)
+    - Compiled CSS and JS 항목 다운로드 → 압축 풀기 → bootstrap.min.css 복사 → resources/static/css/bootstrap.min.css 추가
+
+### 상품 목록 - 타임리프
+
+- BasicItemController
+    
+    ```java
+    package hello.itemservice.web.item.basic;
+    
+    import hello.itemservice.domain.item.Item;
+    import hello.itemservice.domain.item.ItemRepository;
+    import jakarta.annotation.PostConstruct;
+    import lombok.RequiredArgsConstructor;
+    import org.springframework.stereotype.Controller;
+    import org.springframework.ui.Model;
+    import org.springframework.web.bind.annotation.GetMapping;
+    import org.springframework.web.bind.annotation.RequestMapping;
+    
+    import java.util.List;
+    
+    @Controller
+    @RequestMapping("/basic/items")
+    @RequiredArgsConstructor
+    public class BasicItemController {
+    
+        private final ItemRepository itemRepository;
+    
+        @GetMapping
+        public String items(Model model) {
+            List<Item> items = itemRepository.findAll();
+            model.addAttribute("items", items);
+            return "basic/items";
+        }
+        
+        /**
+         * 테스트용 데이터 추가
+         */
+        @PostConstruct
+        public void init() {
+            itemRepository.save(new Item("testA", 10000, 10));
+            itemRepository.save(new Item("testB", 20000, 20));
+        }
+    
+    }
+    ```
+    
+    - `@RequiredArgsConstructor`
+        - `final`이 붙은 멤버 변수만 이용해서 생성자를 자동으로 만들어준다.
+    - 생성자가 딱 1개만 있으면 스프링이 해당 생성자에 `@Autowired`로 의존관계를 주입해준다. (final 키워드를 빼면 안 된다! 그러면 의존관계 주입 X)
+    - 테스트용 데이터 → `@PostConstruct` : 해당 빈의 의존관계가 모두 주입되고 나면 초기화 용도로 호출된다.
+
+- 타임 리프
+    - 사용 선언
+    `<html xmlns:th="<http://www.thymeleaf.org>">`
+    - 속성 변경 - th:href
+        - `href="value1"`을 `th:href="value2"`의 값으로 변경한다.
+        - 타임리프 뷰 템플릿을 거치게 되면 원래 값을 `th:xxx` 값으로 변경한다. 만약 값이 없다면 새로 생성한다.
+        - HTML을 그대로 볼 때는 `href` 속성이 사용되고, 뷰 템플릿을 거치면 `th:href`의 값이 `href`로 대체되면서 동적으로 변경할 수 있다.
+        - 따라서 HTML을 파일 보기를 유지하면서 템플릿 기능도 할 수 있다.
+        - 대부분의 HTML 속성을 `th:xxx` 로 변경할 수 있다.
+    - URL 링크 표현식 - @{..}
+        - 타임리프는 URL 링크를 사용하는 경우 `@{...}` 를 사용한다. 이것을 URL 링크 표현식이라 한다.
+        - URL 링크 표현식을 사용하면 서블릿 컨텍스트를 자동으로 포함한다.
+        - 경로 변수, 쿼리 파라미터 생성 가능
+        - `th:href="@{/basic/items/{itemId}(itemId=${item.id}, query='test')}"`
+    - 리터럴 대체 표현식 - |..|
+        - 타임리프에서 문자와 표현식 등은 분리되어 있기 때문에 더해서 사용해야 한다. 리터럴 대체 문법을 사용하면, 더하기 없이 편리하게 사용할 수 있다.
+        - 전) `<span th:text="'Welcome to our application, ' + ${user.name} + '!'">`
+        - 후) `<span th:text="|Welcome to our application, ${user.name}!|">`
+    - 반복 출력 - th:each
+        - 반복은 `th:each`를 사용한다. 이렇게 하면 모델에 포함된 `items` 컬렉션 데이터가 `item` 변수에 하나씩 포함되고, 반복문 안에서 `item` 변수를 사용할 수 있다.
+        - `<tr th:each="item : ${items}">`
+    - 변수 표현식 - ${..}
+        - 모델에 포함된 값이나, 타임리프 변수로 선언한 값을 조회할 수 있다.
+        - 프로퍼티 접근법을 사용한다. (item.getPrice())
+    - 내용 변경 - th:text
+        - 내용의 값을 `th:text`의 값으로 변경한다.
+
+** 순수 HTML을 그대로 유지하면서 뷰 템플릿도 사용할 수 있는 타임리프의 특징을 **네츄럴 템플릿**이라고 한다.
+
+### 상품 상세
+
+- BasicItemController
+    
+    ```java
+    @GetMapping("/{itemId}")
+    public String item(@PathVariable("itemId") long itemId, Model model) {
+        Item item = itemRepository.findById(itemId);
+        model.addAttribute("item", item);
+        return "basic/item";
+    }
+    ```
+    
+    - `PathVariable` 로 넘어온 상품ID로 상품을 조회하고, 모델에 담아둔다. 그리고 뷰 템플릿을 호출한다.
+
+### 상품 등록 폼
+
+- BasicItemController
+    
+    ```java
+    @GetMapping("/add")
+    public String addForm() {
+        return "basic/addForm";
+    }
+    ```
+    
+    - 단순히 뷰 템플릿만 호출한다.
+
+- 타임리프
+    - `th:action`
+        - HTML form에서 `action`에 값이 없으면 현재 URL에 데이터를 전송한다.
+        - 상품 등록 폼의 URL과 실제 상품 등록을 처리하는 URL을 똑같이 맞추고 HTTP 메서드로 두 기능을 구분한다.
+            - 상품 등록 폼: **GET** `/basic/items/add`
+            - 상품 등록 처리: **POST** `/basic/items/add`
+
+### 상품 등록 처리 - @ModelAttribute
+
+- BasicItemController
+    - v1
+        
+        ```java
+        @PostMapping("/add")
+        public String addItemV1(@RequestParam("itemName") String itemName,
+                                @RequestParam("price") int price,
+                                @RequestParam("quantity") Integer quantity,
+                                Model model) {
+            Item item = new Item();
+            item.setItemName(itemName);
+            item.setPrice(price);
+            item.setQuantity(quantity);
+        
+            itemRepository.save(item);
+            model.addAttribute("item", item);
+        
+            return "basic/item";
+        }
+        ```
+        
+        - `@RequestParam`을 통해 요청 파라미터 데이터를 받는다.
+        - `Item` 객체를 생성하고 `itemRepository` 를 통해서 저장한다.
+        - 저장된 `item`을 모델에 담아서 뷰에 전달한다.
+    - v2
+        
+        ```java
+        @PostMapping("/add")
+        public String addItemV2(@ModelAttribute("item") Item item) {
+            itemRepository.save(item);
+            return "basic/item";
+        }
+        ```
+        
+        - `@ModelAttribute`
+            - `Item` 객체를 생성하고, 요청 파라미터의 값을 프로퍼티 접근법으로 입력해준다.
+            - `Model`에 `@ModelAttribute`로 지정한 객체를 자동으로 넣어준다. 모델에 담을 때는 이름이 필요하다. 이름은 `@ModelAttribute`에 지정한 `name(value)` 속성을 사용한다.
+
+### 상품 수정
+
+- BasicItemController
+    - 상품 수정 폼
+        
+        ```java
+        @GetMapping("/{itemId}/edit")
+        public String editForm(@PathVariable("itemId") Long itemId, Model model) {
+            Item item = itemRepository.findById(itemId);
+            model.addAttribute("item", item);
+            return "basic/editForm";
+        }
+        ```
+        
+        - 수정에 필요한 정보를 조회하고, 수정용 폼 뷰를 호출한다.
+    - 상품 수정
+        
+        ```java
+        @PostMapping("{itemId}/edit")
+        public String edit(@PathVariable("itemId") Long itemId, @ModelAttribute("item") Item item) {
+            itemRepository.update(itemId, item);
+            return "redirect:/basic/items/{itemId}";
+        }
+        ```
+        
+        - `redirect:/basic/items/{itemId}`
+            - 상품 수정은 마지막에 뷰 템플릿을 호출하는 대신에 상품 상세 화면으로 이동하도록 리다이렉트를 호출한다.
+            - 스프링은 `redirect:/...` 으로 편리하게 리다이렉트를 지원한다.
+            - 컨트롤러에 매핑된 `@PathVariable` 의 값은 `redirect` 에도 사용 할 수 있다.
+            - `redirect:/basic/items/{itemId}` `{itemId}` 는 `@PathVariable Long itemId` 의 값 을 그대로 사용한다.
+
+** HTML Form 전송은 PUT, PATCH를 지원하지 않는다. GET, POST만 사용할 수 있다. 스프링에서 HTTP POST로 Form 요청할 때 히든 필드를 통해서 PUT, PATCH 매핑을 사용하는 방법이 있지만, HTTP 요청상 POST 요청이다.
+
+### PRG Post/Redirect/Get
+
+- 문제
+    - 상품 등록을 완료하고 웹 브라우저의 새로고침 버튼을 클릭해보자.
+    - 상품이 계속해서 중복 등록되는 것을 확인할 수 있다.
+
+- POST 등록 후 새로고침
+    
+    ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/8c213252-3cb9-4dcd-aa1d-a7a18f033af8)
+    
+    - 웹 브라우저의 새로 고침은 마지막에 서버에 전송한 데이터를 다시 전송한다.
+    - 상품 등록 폼에서 데이터를 입력하고 저장을 선택하면 `POST /add + 상품 데이터`를 서버로 전송한다. 이 상태에서 새로 고침을 또 선택하면 마지막에 전송한 `POST /add + 상품 데이터`를 서버로 다시 전송하게 된다.
+    - 그래서 내용은 같고, ID만 다른 상품 데이터가 계속 쌓이게 된다.
+
+- 해결 방법 - POST, Redirect GET
+    
+    ![image](https://github.com/Springdingdongrami/spring-mvc-1/assets/66028419/37ca4748-7496-4525-af08-fc5d90c67a30)
+    
+    - 새로 고침 문제를 해결하려면 상품 저장 후에 뷰 템플릿으로 이동하는 것이 아니라, 상품 상세 화면으로 리다이렉트를 호출해주면 된다.
+    - 웹 브라우저는 리다이렉트의 영향으로 상품 저장 후에 실제 상품 상세 화면으로 다시 이동한다. 따라서 마지막에 호출한 내용이 상품 상세 화면인 `GET /items/{id}`가 되는 것이다.
+    - 이후 새로고침을 해도 상품 상세 화면으로 이동하게 되므로 새로 고침 문제를 해결할 수 있다.
+
+- BasicItemController
+    
+    ```java
+    @PostMapping("/add")
+    public String addItemV5(Item item) {
+        itemRepository.save(item);
+        return "redirect:/basic/items/" + item.getId();
+    }
+    ```
+    
+    - 상품 등록 처리 이후에 뷰 템플릿이 아니라 상품 상세 화면으로 리다이렉트 하도록 코드를 작성한다.
+    - 이런 문제 해결 방식을 `PRG Post/Redirect/Get` 라 한다.
+
+### RedirectAttributes
+
+- RedirectAttrtibutes
+    - URL 인코딩
+    - pathVariable, 쿼리 파라미터 처리
+
+- 상품 저장 → 상품 상세 화면에 “저장되었습니다” 메시지 추가
+    - BasicItemController
+        
+        ```java
+        @PostMapping("/add")
+        public String addItemV6(Item item, RedirectAttributes redirectAttributes) {
+            Item savedItem = itemRepository.save(item);
+            redirectAttributes.addAttribute("itemId", savedItem.getId());
+            redirectAttributes.addAttribute("status", true);
+            return "redirect:/basic/items/{itemId}";
+        }
+        ```
+        
+        - 리다이렉트 할 때 간단히 `status=true` 를 추가해보자.
+    - 실행해보면 다음과 같은 리다이렉트 결과가 나온다. 
+    `http://localhost:8080/basic/items/3?status=true`
+        - pathVariable 바인딩: `{itemId}`
+        - 나머지는 쿼리 파라미터로 처리: `?status=true`
+    - 뷰 템플릿 메시지 추가
+        
+        `<h2 th:if="${param.status}" th:text="'저장 완료'"></h2>`
+        
+        - `th:if` : 해당 조건이 참이면 실행
+        - `${param.status}` : 타임리프에서 쿼리 파라미터를 편리하게 조회하는 기능
